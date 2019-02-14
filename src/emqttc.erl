@@ -990,7 +990,7 @@ received(Packet = ?PUBLISH_PACKET(?QOS_1, Topic, PacketId, Payload), State = #st
 
     {ok, State};
 
-received(Packet = ?PUBLISH_PACKET(?QOS_2, _Topic, _PacketId, _Payload), State = #state{proto_state = ProtoState}) ->
+received(Packet = ?PUBLISH_PACKET(?QOS_2, Topic, _PacketId, _Payload), State = #state{proto_state = ProtoState}) ->
 
     {ok, ProtoState1} = emqttc_protocol:received({'PUBLISH', Packet}, ProtoState),
 
