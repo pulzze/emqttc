@@ -1072,7 +1072,7 @@ reply_timeout({Ack, ReqId}, State=#state{inflight_reqs = InflightReqs}) ->
 %% @doc Dispatch Publish Message to subscribers.
 %% @end
 %%------------------------------------------------------------------------------
-dispatch(Publish = {publish, TopicName, _Payload}, #state{recipient = Recipient,
+dispatch(Publish = {publish, TopicName, _PacketId, _Payload}, #state{recipient = Recipient,
                                                           pubsub_map = PubSubMap}) ->
     Matched =
     lists:foldl(
