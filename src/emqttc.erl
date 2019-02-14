@@ -469,7 +469,7 @@ waiting_for_connack(?CONNACK_PACKET(?CONNACK_ACCEPT), State = #state{
                 proto_state = ProtoState,
                 keepalive = KeepAlive,
                 connack_tref = TRef}) ->
-    ?info("[Client ~s] RECV: CONNACK_ACCEPT", [Name]),
+    % ?info("[Client ~s] RECV: CONNACK_ACCEPT", [Name]),
 
     %% Cancel connack timer
     if
@@ -509,7 +509,7 @@ waiting_for_connack(?CONNACK_PACKET(?CONNACK_ACCEPT), State = #state{
 
 waiting_for_connack(?CONNACK_PACKET(ReturnCode), State = #state{name = Name}) ->
     ErrConnAck = emqttc_packet:connack_name(ReturnCode),
-    ?debug("[Client ~s] RECV: ~s", [Name, ErrConnAck]),
+    % ?debug("[Client ~s] RECV: ~s", [Name, ErrConnAck]),
     {stop, {shutdown, {connack_error, ErrConnAck}}, State};
 
 waiting_for_connack(Packet = ?PACKET(_Type), State = #state{name = Name}) ->
@@ -939,21 +939,21 @@ connect(State = #state{name = Name,
                        transport = Transport,
                        tcp_opts = TcpOpts,
                        ssl_opts = SslOpts}) ->
-    ?info("[Client ~s]: connecting to ~s:~p", [Name, Host, Port]),
+    % ?info("[Client ~s]: connecting to ~s:~p", [Name, Host, Port]),
     case emqttc_socket:connect(self(), Transport, Host, Port, TcpOpts, SslOpts) of
         {ok, Socket, Receiver} ->
             ProtoState1 = emqttc_protocol:set_socket(ProtoState, Socket),
             emqttc_protocol:connect(ProtoState1),
             KeepAlive = emqttc_keepalive:new({Socket, send_oct}, KeepAliveTime, {keepalive, timeout}),
             TRef = gen_fsm:start_timer(ConnAckTimeout*1000, connack),
-            ?info("[Client ~s] connected with ~s:~p", [Name, Host, Port]),
+            % ?info("[Client ~s] connected with ~s:~p", [Name, Host, Port]),
             {next_state, waiting_for_connack, State#state{socket = Socket,
                                                           receiver = Receiver,
                                                           keepalive = KeepAlive,
                                                           connack_tref = TRef,
                                                           proto_state = ProtoState1}};
         {error, Reason} ->
-            ?info("[Client ~s] connection failure: ~p", [Name, Reason]),
+            % ?info("[Client ~s] connection failure: ~p", [Name, Reason]),
             try_reconnect(Reason, State)
     end.
 
@@ -961,7 +961,7 @@ try_reconnect(Reason, State = #state{reconnector = undefined}) ->
     {stop, {shutdown, Reason}, State};
 
 try_reconnect(Reason, State = #state{name = Name, reconnector = Reconnector}) ->
-    ?info("[Client ~s] try reconnecting...", [Name]),
+    % ?info("[Client ~s] try reconnecting...", [Name]),
     case emqttc_reconnector:execute(Reconnector, {reconnect, timeout}) of
     {ok, Reconnector1} ->
         {next_state, disconnected, State#state{reconnector = Reconnector1}};
@@ -979,14 +979,14 @@ pending(Event, State = #state{pending_pubsub = Pending}) ->
 %% @end
 %%------------------------------------------------------------------------------
 received(?PUBLISH_PACKET(?QOS_0, Topic, undefined, Payload), State) ->
-    dispatch({publish, Topic, Payload}, State),
+    dispatch({publish, Topic, undefined, Payload}, State),
     {ok, State};
 
-received(Packet = ?PUBLISH_PACKET(?QOS_1, Topic, _PacketId, Payload), State = #state{proto_state = ProtoState}) ->
+received(Packet = ?PUBLISH_PACKET(?QOS_1, Topic, PacketId, Payload), State = #state{proto_state = ProtoState}) ->
 
     emqttc_protocol:received({'PUBLISH', Packet}, ProtoState),
 
-    dispatch({publish, Topic, Payload}, State),
+    dispatch({publish, Topic, PacketId, Payload}, State),
 
     {ok, State};
 
@@ -1012,7 +1012,7 @@ received(?PUBACK_PACKET(?PUBREL, PacketId), State = #state{proto_state = ProtoSt
     ProtoState2 =
     case emqttc_protocol:received({'PUBREL', PacketId}, ProtoState) of
         {ok, ?PUBLISH_PACKET(?QOS_2, Topic, PacketId, Payload), ProtoState1} ->
-            dispatch({publish, Topic, Payload}, State), ProtoState1;
+            dispatch({publish, Topic, PacketId, Payload}, State), ProtoState1;
         {ok, ProtoState1} -> ProtoState1
     end,
     emqttc_protocol:pubcomp(PacketId, ProtoState2),
